@@ -7,6 +7,7 @@ import google.generativeai as genai
 import pandas as pd
 import streamlit as st
 from supabase import create_client
+from page_dashboard import page_dashboard
 
 
 # -----------------------------
@@ -1340,118 +1341,6 @@ def page_script() -> None:
 # -----------------------------
 # Page 4: 進捗ダッシュボード
 # -----------------------------
-def page_dashboard() -> None:
-    st.header("📊 進捗ダッシュボード")
-    st.caption("テーマ〜台本〜動画プロジェクトの全体進捗を可視化します。")
-
-    try:
-        themes_res = supabase.table("video_themes").select("id, status").execute()
-        scripts_res = supabase.table("video_scripts").select("id").execute()
-        projects_res = supabase.table("video_projects").select("*").execute()
-        if any(
-            getattr(r, "error", None)
-            for r in [themes_res, scripts_res, projects_res]
-        ):
-            st.error("ダッシュボード用データの取得に失敗しました。")
-            return
-        themes: List[Dict[str, Any]] = themes_res.data or []
-        scripts: List[Dict[str, Any]] = scripts_res.data or []
-        projects: List[Dict[str, Any]] = projects_res.data or []
-    except Exception as e:
-        st.error(f"ダッシュボードデータ取得中にエラーが発生しました: {e}")
-        return
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("テーマ数", len(themes))
-    c2.metric("台本数", len(scripts))
-    c3.metric("動画プロジェクト数", len(projects))
-    posted_count = len([p for p in projects if p.get("status") == "投稿済み"])
-    c4.metric("投稿済み本数", posted_count)
-
-    st.markdown("---")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("テーマのステータス分布")
-        status_counts: Dict[str, int] = {}
-        for t in themes:
-            status = t.get("status") or "未設定"
-            status_counts[status] = status_counts.get(status, 0) + 1
-        if status_counts:
-            st.bar_chart(status_counts)
-        else:
-            st.info("テーマがまだ登録されていません。")
-
-    with col2:
-        st.subheader("動画プロジェクト一覧")
-        if projects:
-            df = pd.DataFrame(projects)
-            rename_map = {
-                "title": "タイトル",
-                "platform": "プラットフォーム",
-                "status": "ステータス",
-                "post_date": "投稿日",
-                "views": "再生数",
-                "inquiries": "問い合わせ数",
-            }
-            cols = [c for c in rename_map.keys() if c in df.columns]
-            df_disp = df[cols].rename(columns=rename_map)
-            st.dataframe(df_disp, use_container_width=True)
-        else:
-            st.info("動画プロジェクトがまだ登録されていません。")
-
-    st.markdown("---")
-    st.subheader("動画プロジェクトの登録 / 編集")
-
-    with st.form("project_form"):
-        project_id = st.text_input("ID（既存を更新する場合のみ指定。新規は空のまま）")
-        title = st.text_input("タイトル")
-        platform = st.selectbox(
-            "プラットフォーム", ["YouTube", "TikTok", "Instagram", "その他"]
-        )
-        status = st.selectbox("ステータス", ["企画中", "撮影中", "編集中", "投稿済み"])
-        post_date = st.date_input("投稿日（任意）", value=datetime.date.today())
-        views = st.number_input("再生数", min_value=0, value=0)
-        inquiries = st.number_input("問い合わせ数", min_value=0, value=0)
-        notes = st.text_area("メモ")
-        submitted = st.form_submit_button("保存")
-
-    if submitted:
-        if not title:
-            st.warning("タイトルは必須です。")
-        else:
-            data = {
-                "title": title,
-                "platform": platform,
-                "status": status,
-                "post_date": post_date.isoformat() if post_date else None,
-                "views": views,
-                "inquiries": inquiries,
-                "notes": notes,
-            }
-            try:
-                if project_id:
-                    res = (
-                        supabase.table("video_projects")
-                        .update(data)
-                        .eq("id", int(project_id))
-                        .execute()
-                    )
-                else:
-                    res = supabase.table("video_projects").insert(data).execute()
-                if getattr(res, "error", None):
-                    st.error(f"保存に失敗しました: {res.error}")
-                else:
-                    st.success("動画プロジェクトを保存しました。")
-                    st.rerun()
-            except Exception as e:
-                st.error(f"動画プロジェクト保存中にエラーが発生しました: {e}")
-
-
-# -----------------------------
-# メイン
-# -----------------------------
 def main() -> None:
     init_session_state()
 
@@ -1502,7 +1391,7 @@ def main() -> None:
     elif selected_page == "📝 台本 & 字幕 自動生成":
         page_script()
     elif selected_page == "📊 進捗ダッシュボード":
-        page_dashboard()
+        page_dashboard(supabase)
 
 
 if __name__ == "__main__":
