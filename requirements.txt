@@ -1,6 +1,4 @@
-﻿@'
 streamlit
 supabase
 google-generativeai
 pandas
-'@ | Out-File -FilePath "requirements.txt" -Encoding utf8
