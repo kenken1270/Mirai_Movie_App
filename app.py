@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 from supabase import create_client
 from page_dashboard import page_dashboard
+from page_trend import page_trend
 
 
 # -----------------------------
