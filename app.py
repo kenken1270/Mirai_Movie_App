@@ -1350,6 +1350,7 @@ def main() -> None:
         "💡 テーマ & アイデア生成",
         "📝 台本 & 字幕 自動生成",
         "📊 進捗ダッシュボード",
+        "🔍 トレンド調査",
     ]
 
     # current_page をページ配列にマッピングして index を決定
@@ -1393,6 +1394,8 @@ def main() -> None:
         page_script()
     elif selected_page == "📊 進捗ダッシュボード":
         page_dashboard(supabase)
+    elif selected_page == "🔍 トレンド調査":
+        page_trend(supabase)
 
 
 if __name__ == "__main__":
