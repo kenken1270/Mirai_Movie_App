@@ -1014,7 +1014,7 @@ def page_script_pc() -> None:
         if st.button("💾 台本を保存する", use_container_width=True):
             payload = {
                 "idea_id": theme_id,
-                "title": selected_idea.get("title"),
+                "title": resolved_title,
                 "hook": hook_text,
                 "problem": problem_text,
                 "solution": solution_text,
@@ -1412,10 +1412,16 @@ def page_script_mobile() -> None:
                     st.error(f"テーマ取得中にエラーが発生しました: {e}")
                     return
 
+                resolved_title = (
+                    theme_row.get("title")
+                    or selected_idea.get("title")
+                    or theme_row.get("theme_keyword")
+                    or "タイトル未設定"
+                )
                 title = selected_idea.get("title")
                 payload_script = {
                     "idea_id": theme_id,
-                    "title": title,
+                    "title": resolved_title,
                     "hook": script_data.get("hook"),
                     "problem": script_data.get("problem"),
                     "solution": script_data.get("solution"),
