@@ -147,9 +147,9 @@ def get_gemini_model() -> Optional[Any]:
         st.warning("Gemini APIキーが設定されていません（st.secrets['gemini']['api_key']）。")
         return None
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        return model
+        from google import genai
+        client = genai.Client(api_key=api_key)
+        return client
     except Exception as e:
         st.error(f"Geminiモデルの初期化に失敗しました: {e}")
         return None
@@ -194,7 +194,10 @@ def generate_video_ideas(theme: str, num_ideas: int) -> List[Dict[str, Any]]:
 """
 
     try:
-        response = model.generate_content(prompt)
+        response = model.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
         text = getattr(response, "text", "") or ""
         cleaned = clean_json_text(text)
         ideas = json.loads(cleaned)
@@ -260,7 +263,10 @@ def generate_script(idea: Dict[str, Any]) -> Dict[str, Any]:
 """
 
     try:
-        response = model.generate_content(prompt)
+        response = model.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
         text = getattr(response, "text", "") or ""
         cleaned = clean_json_text(text)
         data = json.loads(cleaned)
@@ -313,8 +319,8 @@ def generate_subtitle_texts(
     台本全文を受け取り、字幕用の短いテキストを num_subtitles 個生成して返す。
     """
     try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.5-flash")
+        from google import genai
+        client = genai.Client(api_key=api_key)
     except Exception as e:
         st.error(f"Geminiモデルの初期化に失敗しました（字幕生成）: {e}")
         return [""] * num_subtitles
@@ -334,7 +340,10 @@ def generate_subtitle_texts(
 {full_script}
 """
     try:
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
         raw = (getattr(response, "text", "") or "").strip()
         if raw.startswith("```"):
             parts = raw.split("```")
