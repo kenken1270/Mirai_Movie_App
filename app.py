@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 from supabase import create_client
 from page_dashboard import page_dashboard
+from page_themes import page_themes
 from page_trend import page_trend
 
 
@@ -1348,6 +1349,7 @@ def main() -> None:
     pages = [
         "⚙️ 塾プロフィール設定",
         "💡 テーマ & アイデア生成",
+        "📦 ネタストック",
         "📝 台本 & 字幕 自動生成",
         "📊 進捗ダッシュボード",
         "🔍 トレンド調査",
@@ -1390,6 +1392,8 @@ def main() -> None:
         page_profile()
     elif selected_page == "💡 テーマ & アイデア生成":
         page_ideas()
+    elif selected_page == "📦 ネタストック":
+        page_themes(supabase)
     elif selected_page == "📝 台本 & 字幕 自動生成":
         page_script()
     elif selected_page == "📊 進捗ダッシュボード":
