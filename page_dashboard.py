@@ -99,6 +99,20 @@ def page_dashboard_pc(supabase) -> None:
                         st.rerun()
                     except Exception as e:
                         st.error(f"更新エラー: {e}")
+                st.divider()
+                if st.button("🗑️ このプロジェクトを削除する", key=f"delete_{pid}", type="secondary", use_container_width=True):
+                    if st.session_state.get(f"confirm_delete_{pid}"):
+                        try:
+                            supabase.table("project_metrics").delete().eq("project_id", pid).execute()
+                            supabase.table("video_projects").delete().eq("id", pid).execute()
+                            st.success("🗑️ プロジェクトを削除しました。")
+                            st.session_state.pop(f"confirm_delete_{pid}", None)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"削除エラー: {e}")
+                    else:
+                        st.session_state[f"confirm_delete_{pid}"] = True
+                        st.warning("⚠️ もう一度ボタンを押すと削除されます。")
             with col_metric:
                 st.markdown("**📊 数値を記録する**")
                 m_date = st.date_input("記録日", value=date.today(), key=f"mdate_{pid}")
@@ -209,6 +223,19 @@ def page_dashboard_mobile(supabase) -> None:
                     st.rerun()
                 except Exception as e:
                     st.error(f"更新エラー: {e}")
+            if st.button("🗑️ 削除", key=f"m_delete_{pid}", use_container_width=True):
+                if st.session_state.get(f"m_confirm_delete_{pid}"):
+                    try:
+                        supabase.table("project_metrics").delete().eq("project_id", pid).execute()
+                        supabase.table("video_projects").delete().eq("id", pid).execute()
+                        st.success("🗑️ 削除しました。")
+                        st.session_state.pop(f"m_confirm_delete_{pid}", None)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"削除エラー: {e}")
+                else:
+                    st.session_state[f"m_confirm_delete_{pid}"] = True
+                    st.warning("⚠️ もう一度押すと削除されます。")
             with st.expander("📊 数値を記録する"):
                 m_date = st.date_input("記録日", value=date.today(), key=f"mm_date_{pid}")
                 m_views = st.number_input("視聴回数", min_value=0, value=0, key=f"mm_views_{pid}")
