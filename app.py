@@ -685,7 +685,7 @@ def page_ideas() -> None:
             idea_data = json.loads(sel_raw)
         except Exception:
             idea_data = {}
-        title = idea_data.get("title") or t.get("theme_keyword") or "タイトル未設定"
+        title = t.get("title") or idea_data.get("title") or t.get("theme_keyword") or "タイトル未設定"
         created = t.get("created_at") or ""
         if created:
             try:
