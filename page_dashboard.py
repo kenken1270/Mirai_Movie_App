@@ -159,65 +159,7 @@ def page_dashboard_pc(supabase) -> None:
                     except Exception as e:
                         st.error(f"登録エラー: {e}")
 
-    # ── バズワード分析 ──────────────────────────────────────
-    st.divider()
-    st.subheader("📊 バズワード分析")
-    st.caption("トレンド調査で記録したハッシュタグの出現頻度と推移を確認できます。")
-
-    try:
-        bw_data = supabase.table("trend_buzzwords").select("*").order("recorded_date", desc=True).execute().data or []
-    except Exception as e:
-        st.error(f"データ取得エラー: {e}")
-        bw_data = []
-
-    if not bw_data:
-        st.info("まだバズワードが記録されていません。トレンド調査ページで記録してください。")
-    else:
-        import pandas as pd
-        from collections import Counter
-
-        # 記録一覧テーブル
-        with st.expander("📋 記録一覧を見る", expanded=False):
-            rows = []
-            for row in bw_data:
-                rows.append({
-                    "日付": row.get("recorded_date", ""),
-                    "キーワード": row.get("keyword", ""),
-                    "バズワード数": len(row.get("buzzwords", [])),
-                    "バズワード": " ".join(row.get("buzzwords", [])),
-                })
-            df_list = pd.DataFrame(rows)
-            st.dataframe(df_list, use_container_width=True)
-
-        # 出現頻度ランキング
-        all_words = []
-        for row in bw_data:
-            all_words.extend(row.get("buzzwords", []))
-        word_count = Counter(all_words)
-        df_rank = pd.DataFrame(
-            word_count.most_common(20),
-            columns=["ハッシュタグ", "出現回数"]
-        )
-        st.markdown("**🏆 出現頻度ランキング TOP20**")
-        st.bar_chart(df_rank.set_index("ハッシュタグ"))
-
-        # 時系列：上位5ワードの推移
-        top5 = [w for w, _ in word_count.most_common(5)]
-        timeline_rows = []
-        for row in bw_data:
-            date = row.get("recorded_date", "")
-            words = row.get("buzzwords", [])
-            for w in top5:
-                timeline_rows.append({
-                    "日付": date,
-                    "ワード": w,
-                    "登場": 1 if w in words else 0,
-                })
-        if timeline_rows:
-            df_time = pd.DataFrame(timeline_rows)
-            df_pivot = df_time.groupby(["日付", "ワード"])["登場"].sum().unstack(fill_value=0)
-            st.markdown("**📈 上位5ワードの時系列推移**")
-            st.line_chart(df_pivot)
+    page_dashboard_buzzwords(supabase)
 
 
 def page_dashboard_mobile(supabase) -> None:
@@ -306,3 +248,65 @@ def page_dashboard_mobile(supabase) -> None:
                     st.rerun()
                 except Exception as e:
                     st.error(f"登録エラー: {e}")
+
+
+def page_dashboard_buzzwords(supabase):
+    """バズワード分析セクション"""
+    st.divider()
+    st.subheader("📊 バズワード分析")
+    st.caption("トレンド調査で記録したハッシュタグの出現頻度と推移を確認できます。")
+
+    try:
+        bw_data = supabase.table("trend_buzzwords").select("*").order("recorded_date", desc=True).execute().data or []
+    except Exception as e:
+        st.error(f"データ取得エラー: {e}")
+        bw_data = []
+
+    if not bw_data:
+        st.info("まだバズワードが記録されていません。トレンド調査ページで記録してください。")
+        return
+
+    from collections import Counter
+
+    # 記録一覧テーブル
+    with st.expander("📋 記録一覧を見る", expanded=False):
+        rows = []
+        for row in bw_data:
+            rows.append({
+                "日付": row.get("recorded_date", ""),
+                "キーワード": row.get("keyword", ""),
+                "バズワード数": len(row.get("buzzwords", [])),
+                "バズワード": " ".join(row.get("buzzwords", [])),
+            })
+        df_list = pd.DataFrame(rows)
+        st.dataframe(df_list, use_container_width=True)
+
+    # 出現頻度ランキング
+    all_words = []
+    for row in bw_data:
+        all_words.extend(row.get("buzzwords", []))
+    word_count = Counter(all_words)
+    df_rank = pd.DataFrame(
+        word_count.most_common(20),
+        columns=["ハッシュタグ", "出現回数"]
+    )
+    st.markdown("**🏆 出現頻度ランキング TOP20**")
+    st.bar_chart(df_rank.set_index("ハッシュタグ"))
+
+    # 時系列：上位5ワードの推移
+    top5 = [w for w, _ in word_count.most_common(5)]
+    timeline_rows = []
+    for row in bw_data:
+        date_val = row.get("recorded_date", "")
+        words = row.get("buzzwords", [])
+        for w in top5:
+            timeline_rows.append({
+                "日付": date_val,
+                "ワード": w,
+                "登場": 1 if w in words else 0,
+            })
+    if timeline_rows:
+        df_time = pd.DataFrame(timeline_rows)
+        df_pivot = df_time.groupby(["日付", "ワード"])["登場"].sum().unstack(fill_value=0)
+        st.markdown("**📈 上位5ワードの時系列推移**")
+        st.line_chart(df_pivot)
