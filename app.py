@@ -223,7 +223,7 @@ def generate_video_ideas(theme: str, num_ideas: int) -> List[Dict[str, Any]]:
         return []
 
 
-def generate_script(idea: Dict[str, Any]) -> Dict[str, Any]:
+def generate_script(idea: Dict[str, Any], video_type: str = "情報提供・お役立ち型") -> Dict[str, Any]:
     model = get_gemini_model()
     if model is None:
         return {}
@@ -233,13 +233,17 @@ def generate_script(idea: Dict[str, Any]) -> Dict[str, Any]:
     summary = idea.get("summary", "")
     target_pain = idea.get("target_pain", "")
 
-    prompt = f"""
-あなたは教育系YouTube/TikTokの台本ライターです。
-次の塾プロフィールと動画アイデアを元に、約60秒のショート動画台本を作成してください。
+    if video_type == "塾紹介・集客型":
+        cta_instruction = "CTAは未来塾（大阪市上本町の日本語・中国語教室）への体験授業申込みや問い合わせに誘導する内容にしてください。"
+    elif video_type == "共感・悩み相談型":
+        cta_instruction = "CTAは視聴者に共感を示し、コメントで悩みを共有するよう促す内容にしてください。未来塾への直接誘導は不要です。"
+    else:  # 情報提供・お役立ち型
+        cta_instruction = "CTAはこの動画が役に立ったらいいねやフォローをお願いする内容にしてください。塾の宣伝は不要です。"
 
-【塾プロフィール】
-{STUDIO_PROFILE}
+    prompt = f"""あなたは教育系YouTube/TikTokの台本ライターです。
+次の動画アイデアを元に、約60秒のショート動画台本を作成してください。
 
+【動画タイプ】{video_type}
 【動画アイデア】
 タイトル: {title}
 フック案: {hook}
@@ -247,10 +251,10 @@ def generate_script(idea: Dict[str, Any]) -> Dict[str, Any]:
 刺さる悩み: {target_pain}
 
 構成は以下の4セクションにしてください：
-1. hook: 0〜5秒のフック
-2. problem: 5〜15秒の問題提示
-3. solution: 15〜45秒の解決策・本編
-4. cta: 45〜60秒のCTA（行動喚起、塾への誘導）
+1. hook: 0〜5秒のフック（視聴者を引き止める一言）
+2. problem: 5〜15秒の問題提示（視聴者の悩みに共感）
+3. solution: 15〜45秒の解決策・本編（具体的で役立つ情報）
+4. cta: 45〜60秒のCTA（{cta_instruction}）
 
 出力フォーマット：次のJSONオブジェクトのみを返してください（コードブロック記号は不要）。
 {{
@@ -954,9 +958,17 @@ def page_script_pc() -> None:
         st.subheader("STEP 1: 台本自動生成")
         script_data = st.session_state.get("generated_script") or {}
 
+        video_type = st.radio(
+            "📽️ 動画の目的を選んでください",
+            ["情報提供・お役立ち型", "塾紹介・集客型", "共感・悩み相談型"],
+            horizontal=True,
+            key="video_type_radio",
+            captions=["役立つ情報だけを届ける", "未来塾への集客・体験申込みを促す", "悩みに共感しコメントを促す"]
+        )
+
         if st.button("🎬 台本を自動生成する", use_container_width=True):
             with st.spinner("Geminiで台本を生成中..."):
-                script_data = generate_script(selected_idea)
+                script_data = generate_script(selected_idea, video_type)
             st.session_state.generated_script = script_data
             if not script_data:
                 st.info("台本の自動生成に失敗しました。")
