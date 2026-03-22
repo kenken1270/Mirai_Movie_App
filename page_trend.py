@@ -215,6 +215,19 @@ def page_trend_pc(supabase) -> None:
                 for tag in result["buzzwords"]
             ])
             st.markdown(badge_html, unsafe_allow_html=True)
+            col_bz_save, col_bz_space = st.columns([2, 3])
+            with col_bz_save:
+                if st.button("💾 バズワードを記録する", key="save_buzzwords"):
+                    try:
+                        from datetime import date
+                        supabase.table("trend_buzzwords").insert({
+                            "keyword": result["keyword"],
+                            "buzzwords": result["buzzwords"],
+                            "recorded_date": str(date.today()),
+                        }).execute()
+                        st.success("✅ バズワードを記録しました！")
+                    except Exception as e:
+                        st.error(f"保存エラー: {e}")
             st.divider()
 
         # アイデア一覧
