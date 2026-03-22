@@ -1350,7 +1350,6 @@ def main() -> None:
         "💡 テーマ & アイデア生成",
         "📝 台本 & 字幕 自動生成",
         "📊 進捗ダッシュボード",
-        "🔧 デバッグ",
         "🔍 トレンド調査",
     ]
 
@@ -1395,25 +1394,8 @@ def main() -> None:
         page_script()
     elif selected_page == "📊 進捗ダッシュボード":
         page_dashboard(supabase)
-    elif selected_page == "🔧 デバッグ":
-        page_debug(supabase)
     elif selected_page == "🔍 トレンド調査":
         page_trend(supabase)
-
-def page_debug(supabase):
-    st.header("🔧 デバッグ：使用可能なGeminiモデル一覧")
-    if st.button("モデル一覧を取得"):
-        try:
-            from google import genai
-            client = genai.Client(api_key=st.secrets["gemini"]["api_key"])
-            models = client.models.list()
-            count = 0
-            for m in models:
-                st.write(f"📋 {m.name}")
-                count += 1
-            st.success(f"合計 {count} 件")
-        except Exception as e:
-            st.error(f"エラー: {e}")
 
 if __name__ == "__main__":
     main()
