@@ -943,16 +943,43 @@ def page_script_pc() -> None:
                 st.error("選択されたテーマが見つかりません。")
                 return
             theme_row = rows[0]
-            selected_idea = json.loads(theme_row.get("selected_idea") or "{}")
+            raw_selected = theme_row.get("selected_idea") or "{}"
+            try:
+                selected_idea = json.loads(raw_selected)
+            except Exception:
+                selected_idea = {}
+
+            # titleカラムを最優先で使用（新規保存アイデア対応）
+            resolved_title = (
+                theme_row.get("title")
+                or selected_idea.get("title")
+                or theme_row.get("theme_keyword")
+                or "タイトル未設定"
+            )
+            resolved_hook = (
+                theme_row.get("hook")
+                or selected_idea.get("hook")
+                or ""
+            )
+
+            # generate_script に渡すデータを正しく組み立てる
+            selected_idea_for_script = {
+                "title": resolved_title,
+                "hook": resolved_hook,
+                "summary": selected_idea.get("summary") or selected_idea.get("solution") or "",
+                "target_pain": selected_idea.get("target_pain") or selected_idea.get("problem") or "",
+                "category": theme_row.get("category") or "",
+            }
         except Exception as e:
             st.error(f"テーマ取得エラー: {e}")
             return
 
+        st.caption(f"🔍 DEBUG: theme_id={theme_id} | title={resolved_title}")
         st.subheader("✍️ 台本 & 字幕 自動生成")
         st.markdown(f"**📌 選択中のアイデア**")
         st.markdown(f"🏷️ {theme_row.get('category') or '未分類'}")
-        st.markdown(f"**{selected_idea.get('title', '')}**")
-        st.markdown(f"> {selected_idea.get('hook', '')}")
+        st.markdown(f"**{resolved_title}**")
+        st.markdown(f"> {resolved_hook}")
 
         st.markdown("---")
         st.subheader("STEP 1: 台本自動生成")
@@ -968,7 +995,7 @@ def page_script_pc() -> None:
 
         if st.button("🎬 台本を自動生成する", use_container_width=True):
             with st.spinner("Geminiで台本を生成中..."):
-                script_data = generate_script(selected_idea, video_type)
+                script_data = generate_script(selected_idea_for_script, video_type)
             st.session_state.generated_script = script_data
             if not script_data:
                 st.info("台本の自動生成に失敗しました。")
