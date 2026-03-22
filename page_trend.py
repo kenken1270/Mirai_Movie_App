@@ -44,6 +44,30 @@ def _search_trends(query: str) -> str:
         return ""
 
 
+def _extract_buzzwords(trend_text: str, client) -> list:
+    """トレンドテキストからバズワード・ハッシュタグを抽出する"""
+    if not client or not trend_text:
+        return []
+    prompt = f"""以下のトレンド情報から、SNSで使えるハッシュタグキーワードを20個抽出してください。
+在日中国人・日本語学習・子育て・日本生活に関連するものを優先してください。
+
+【トレンド情報】
+{trend_text}
+
+【出力形式】ハッシュタグのみをカンマ区切りで出力してください。例：
+#在日中国人,#日本子育て,#日本語学習,#小学校入学,#保育園探し"""
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
+        )
+        raw = response.text.strip()
+        tags = [t.strip() for t in raw.replace("，", ",").split(",") if t.strip().startswith("#")]
+        return tags
+    except Exception:
+        return []
+
+
 # ── Gemini アイデア生成 ───────────────────────────────────────
 def _generate_ideas_from_trends(trend_text: str, keyword: str, categories=None) -> str:
     client = _get_gemini_client()
@@ -140,6 +164,20 @@ def page_trend_pc(supabase) -> None:
 
             if trend_text:
                 st.success("✅ トレンド情報を取得しました！")
+                # バズワード抽出・表示
+                with st.spinner("🔖 バズワードを抽出中..."):
+                    gemini_client = _get_gemini_client()
+                    buzzwords = _extract_buzzwords(trend_text, gemini_client)
+                if buzzwords:
+                    st.subheader("🔖 バズワード・ハッシュタグ")
+                    # ハッシュタグをバッジ風に横並び表示
+                    badge_html = " ".join([
+                        f'<span style="background:#e8f4fd;color:#1a73e8;padding:4px 10px;border-radius:20px;margin:3px;display:inline-block;font-size:13px;">{tag}</span>'
+                        for tag in buzzwords
+                    ])
+                    st.markdown(badge_html, unsafe_allow_html=True)
+                    st.divider()
+
                 with st.expander("📄 取得したトレンド情報を見る"):
                     st.text(trend_text)
 
