@@ -137,6 +137,9 @@ def page_trend(supabase) -> None:
 # ── PC / タブレット版 ─────────────────────────────────────────
 def page_trend_pc(supabase) -> None:
     st.header("🔍 トレンド調査 & アイデア自動生成")
+    # 古いsession_stateキーをクリア（trend_ideasが残っている場合）
+    if "trend_ideas" in st.session_state:
+        del st.session_state["trend_ideas"]
     st.caption("最新トレンドからSNSコンテンツアイデアを自動生成してネタストックに追加します。")
     st.divider()
 
@@ -185,6 +188,8 @@ def page_trend_pc(supabase) -> None:
                     categories = None
                 ideas = _generate_ideas_from_trends(trend_text, keyword, categories)
 
+            # 古い結果を必ずクリアしてから新しい結果を保存
+            st.session_state.pop("trend_result", None)
             # session_stateに保存
             st.session_state["trend_result"] = {
                 "keyword": keyword,
