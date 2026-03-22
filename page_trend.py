@@ -155,12 +155,13 @@ def page_trend_pc(supabase) -> None:
                 if raw_ideas:
                     ideas = _parse_ideas(raw_ideas)
                     st.session_state["trend_ideas"] = ideas
-                    st.rerun()
+                    # rerunしない、このまま下の表示処理に続く
             else:
                 st.error("トレンド情報の取得に失敗しました。")
 
-    if st.session_state.get("trend_ideas"):
-        ideas = st.session_state["trend_ideas"]
+    display_ideas = ideas if 'ideas' in dir() and ideas else st.session_state.get("trend_ideas", [])
+    if display_ideas:
+        ideas = display_ideas
         st.subheader(f"💡 生成されたアイデア（{len(ideas)}件）")
 
         try:
@@ -258,12 +259,13 @@ def page_trend_mobile(supabase) -> None:
                 if raw_ideas:
                     ideas = _parse_ideas(raw_ideas)
                     st.session_state["trend_ideas"] = ideas
-                    st.rerun()
+                    # rerunしない、このまま下の表示処理に続く
             else:
                 st.error("取得失敗。再試行してください。")
 
-    if st.session_state.get("trend_ideas"):
-        ideas = st.session_state["trend_ideas"]
+    display_ideas = ideas if 'ideas' in dir() and ideas else st.session_state.get("trend_ideas", [])
+    if display_ideas:
+        ideas = display_ideas
         st.subheader(f"💡 {len(ideas)}件のアイデア")
 
         for i, idea in enumerate(ideas):
