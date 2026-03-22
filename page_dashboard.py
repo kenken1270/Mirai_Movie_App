@@ -1,3 +1,4 @@
+import json
 import streamlit as st
 import pandas as pd
 from datetime import date
@@ -63,7 +64,61 @@ def page_dashboard_pc(supabase) -> None:
         platform = proj.get("platform", "")
         emoji = status_emoji.get(status, "📁")
         with st.expander(f"{emoji} {title}  [{platform}]  ― {status}"):
-            col_edit, col_metric = st.columns([2, 3])
+            col_script, col_edit, col_metric = st.columns([3, 2, 3])
+
+            with col_script:
+                st.markdown("**📄 台本**")
+                try:
+                    # memoからscript_idを抽出を試みる
+                    memo_text = proj.get("memo", "") or ""
+                    script_id_from_memo = None
+                    if "script_id=" in memo_text:
+                        import re
+                        m = re.search(r"script_id=([a-zA-Z0-9\-]+)", memo_text)
+                        if m:
+                            script_id_from_memo = m.group(1)
+
+                    # idea_idでも検索
+                    scripts = supabase.table("video_scripts").select("*").order("created_at", desc=True).execute().data or []
+                    matched_script = None
+                    if script_id_from_memo:
+                        for s in scripts:
+                            if str(s.get("id")) == str(script_id_from_memo):
+                                matched_script = s
+                                break
+                    if not matched_script:
+                        # タイトルで近いものを探す
+                        for s in scripts:
+                            if s.get("title") and title and s.get("title") in title:
+                                matched_script = s
+                                break
+
+                    if matched_script:
+                        full = matched_script.get("full_script", "")
+                        hook = matched_script.get("hook", "")
+                        problem = matched_script.get("problem", "")
+                        solution = matched_script.get("solution", "")
+                        cta = matched_script.get("cta", "")
+                        if full:
+                            with st.expander("📖 フル台本を見る", expanded=False):
+                                st.markdown(f"**🎣 フック（0〜5秒）**")
+                                st.info(hook)
+                                st.markdown(f"**❓ 問題提示（5〜15秒）**")
+                                st.warning(problem)
+                                st.markdown(f"**💡 解決策・本編（15〜45秒）**")
+                                st.success(solution)
+                                st.markdown(f"**📣 CTA（45〜60秒）**")
+                                st.info(cta)
+                                st.divider()
+                                st.markdown("**📝 フル台本**")
+                                st.text_area("", value=full, height=300, key=f"script_full_{pid}", label_visibility="collapsed")
+                        else:
+                            st.caption("台本データが空です。")
+                    else:
+                        st.caption("台本がまだありません。")
+                        st.caption("「📝 台本 & 字幕 自動生成」ページで作成できます。")
+                except Exception as e:
+                    st.caption(f"台本取得エラー: {e}")
             with col_edit:
                 st.markdown("**✏️ プロジェクト編集**")
                 new_title = st.text_input("タイトル", value=title, key=f"title_{pid}")
