@@ -996,6 +996,91 @@ def page_script_pc() -> None:
             except Exception as e:
                 st.error(f"台本保存エラー: {e}")
 
+        # ── AI台本ブラッシュアップ ──────────────────────────
+        st.markdown("---")
+        st.subheader("🤖 AIと台本を改善する")
+        st.caption("現在の台本をAIに渡して、改善リクエストをチャット形式で伝えられます。")
+
+        improve_request = st.text_area(
+            "改善リクエストを入力",
+            placeholder="例：フックをもっと強くして\n例：CTAを未来塾の体験授業への誘導に変えて\n例：全体的に中国人保護者に刺さる表現にして",
+            height=100,
+            key="improve_request"
+        )
+
+        if st.button("✨ AIに改善してもらう", use_container_width=True, key="btn_improve"):
+            if not improve_request.strip():
+                st.warning("改善リクエストを入力してください。")
+            else:
+                current_script = {
+                    "hook": hook_text,
+                    "problem": problem_text,
+                    "solution": solution_text,
+                    "cta": cta_text,
+                    "full_script": full_script
+                }
+                improve_prompt = f"""あなたは教育系SNS動画の台本ライターです。
+以下の現在の台本を、ユーザーのリクエストに従って改善してください。
+
+【改善リクエスト】
+{improve_request}
+
+【現在の台本】
+フック（0〜5秒）: {current_script['hook']}
+問題提示（5〜15秒）: {current_script['problem']}
+解決策・本編（15〜45秒）: {current_script['solution']}
+CTA（45〜60秒）: {current_script['cta']}
+フル台本: {current_script['full_script']}
+
+【出力フォーマット】以下のJSONのみを返してください（コードブロック記号不要）：
+{{
+  "hook": "改善後のフック",
+  "problem": "改善後の問題提示",
+  "solution": "改善後の解決策・本編",
+  "cta": "改善後のCTA",
+  "full_script": "改善後のフル台本"
+}}"""
+                with st.spinner("AIが台本を改善中..."):
+                    try:
+                        client = get_gemini_model()
+                        if client:
+                            response = client.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=improve_prompt
+                            )
+                            raw = getattr(response, "text", "") or ""
+                            cleaned = clean_json_text(raw)
+                            improved = json.loads(cleaned)
+                            st.session_state["improved_script"] = improved
+                        else:
+                            st.error("Geminiクライアントの初期化に失敗しました。")
+                    except Exception as e:
+                        st.error(f"台本改善エラー: {e}")
+
+        if st.session_state.get("improved_script"):
+            improved = st.session_state["improved_script"]
+            st.success("✅ AIが改善案を作成しました！")
+            with st.expander("📄 改善案を確認する", expanded=True):
+                st.markdown("**🎣 フック（0〜5秒）**")
+                st.info(improved.get("hook", ""))
+                st.markdown("**❓ 問題提示（5〜15秒）**")
+                st.warning(improved.get("problem", ""))
+                st.markdown("**💡 解決策・本編（15〜45秒）**")
+                st.success(improved.get("solution", ""))
+                st.markdown("**📣 CTA（45〜60秒）**")
+                st.info(improved.get("cta", ""))
+                st.divider()
+                st.markdown("**📝 フル台本（改善後）**")
+                st.text_area("", value=improved.get("full_script", ""), height=200,
+                             key="improved_full_preview", label_visibility="collapsed")
+
+            if st.button("✅ この改善案を台本に反映する", type="primary",
+                         use_container_width=True, key="btn_apply_improve"):
+                st.session_state["generated_script"] = improved
+                st.session_state.pop("improved_script", None)
+                st.success("🎉 台本を更新しました！上のテキストエリアに反映されています。")
+                st.rerun()
+
         st.markdown("---")
         st.subheader("STEP 2: 字幕自動生成")
         script_id = st.session_state.get("selected_script_id")
