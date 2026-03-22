@@ -3,7 +3,6 @@ import json
 import re
 from typing import Any, Dict, List, Optional
 
-import google.generativeai as genai
 import pandas as pd
 import streamlit as st
 from supabase import create_client
