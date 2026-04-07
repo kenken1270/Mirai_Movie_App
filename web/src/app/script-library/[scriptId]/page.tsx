@@ -6,6 +6,18 @@ import { getScriptById } from "@/lib/repositories/loop-repository";
 
 export const dynamic = "force-dynamic";
 
+function resolveIdeaTitle(ideas: unknown): string {
+  if (!ideas) return "（タイトルなし）";
+  if (Array.isArray(ideas)) {
+    const first = ideas[0] as { title?: string } | undefined;
+    return first?.title ?? "（タイトルなし）";
+  }
+  if (typeof ideas === "object" && ideas !== null && "title" in ideas) {
+    return String((ideas as { title?: string }).title ?? "（タイトルなし）");
+  }
+  return "（タイトルなし）";
+}
+
 export default async function ScriptLibraryCuePage({ params }: { params: { scriptId: string } }) {
   const { data: script, error } = await getScriptById(params.scriptId);
 
@@ -24,7 +36,7 @@ export default async function ScriptLibraryCuePage({ params }: { params: { scrip
     notFound();
   }
 
-  const ideaTitle = script.ideas?.title ?? "（タイトルなし）";
+  const ideaTitle = resolveIdeaTitle(script.ideas);
 
   return (
     <ScriptTeleprompterView
