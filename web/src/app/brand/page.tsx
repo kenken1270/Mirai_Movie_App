@@ -1,11 +1,21 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listBrandProfile, upsertBrandProfile } from "@/lib/repositories/loop-repository";
 
 export const dynamic = "force-dynamic";
 
-export default async function BrandPage() {
+function one(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] ?? "";
+  return value ?? "";
+}
+
+export default async function BrandPage({
+  searchParams,
+}: {
+  searchParams: Record<string, string | string[] | undefined>;
+}) {
   async function onSave(formData: FormData) {
     "use server";
     const id = String(formData.get("id") ?? "");
@@ -25,9 +35,11 @@ export default async function BrandPage() {
       defaultCta: String(formData.get("default_cta") ?? "").trim(),
     });
     revalidatePath("/brand");
+    redirect("/brand?saved=1");
   }
 
   const { data } = await listBrandProfile();
+  const saved = one(searchParams.saved) === "1";
 
   return (
     <div className="container mx-auto max-w-5xl p-8">
@@ -37,6 +49,14 @@ export default async function BrandPage() {
           <CardDescription>
             毎回同じ入力を省き、AI台本の品質を安定させるための共通設定です。
           </CardDescription>
+          {saved ? (
+            <p className="text-xs text-emerald-600">保存しました。</p>
+          ) : null}
+          {data?.updated_at ? (
+            <p className="text-xs text-muted-foreground">
+              最終更新: {new Date(data.updated_at).toLocaleString("ja-JP")}
+            </p>
+          ) : null}
         </CardHeader>
         <CardContent>
           <form action={onSave} className="grid gap-3 md:grid-cols-2">
