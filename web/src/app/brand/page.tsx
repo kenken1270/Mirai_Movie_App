@@ -1,6 +1,5 @@
 import { revalidatePath } from "next/cache";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listBrandProfile, upsertBrandProfile } from "@/lib/repositories/loop-repository";
 
@@ -98,7 +97,12 @@ export default async function BrandPage() {
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             />
             <div className="md:col-span-2">
-              <Button type="submit">保存</Button>
+              <button
+                type="submit"
+                className="inline-flex h-8 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+              >
+                保存
+              </button>
             </div>
           </form>
         </CardContent>
