@@ -33,6 +33,7 @@ export default async function BrandPage({
       defaultDurationSec: Number(formData.get("default_duration_sec") ?? 30),
       defaultGoal: String(formData.get("default_goal") ?? "save").trim(),
       defaultCta: String(formData.get("default_cta") ?? "").trim(),
+      scriptOsMarkdown: String(formData.get("script_os_markdown") ?? "").trim(),
     });
     revalidatePath("/brand");
     redirect("/brand?saved=1");
@@ -47,7 +48,7 @@ export default async function BrandPage({
         <CardHeader>
           <CardTitle>ブランド前提設定</CardTitle>
           <CardDescription>
-            毎回同じ入力を省き、AI台本の品質を安定させるための共通設定です。
+            毎回同じ入力を省き、AI台本の品質を安定させるための共通設定です。「台本OS」はショート動画の絶対ルール（フック・P.A.S.・RED向けなど）をそのまま貼り、AI生成の固定コンテキストに使います。
           </CardDescription>
           {saved ? (
             <p className="text-xs text-emerald-600">保存しました。</p>
@@ -116,6 +117,15 @@ export default async function BrandPage({
               placeholder="既定CTA"
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             />
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-sm font-medium">台本OS（絶対ルール・Markdown可）</label>
+              <textarea
+                name="script_os_markdown"
+                defaultValue={data?.script_os_markdown ?? ""}
+                placeholder="例: 冒頭3秒の黄金フック、情報ギャップ、P.A.S.、小紅書向け表紙・保存導線など。ここに書いた内容がAI台本の最優先ルールになります。"
+                className="min-h-72 w-full rounded-md border border-input bg-background p-3 text-sm font-mono leading-relaxed"
+              />
+            </div>
             <div className="md:col-span-2">
               <button
                 type="submit"

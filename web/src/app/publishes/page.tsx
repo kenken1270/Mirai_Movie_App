@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +41,8 @@ export default async function PublishesPage() {
     await moveIdeaStatus(ideaId, "published");
     revalidatePath("/publishes");
     revalidatePath("/pipeline");
+    revalidatePath(`/ideas/${ideaId}`);
+    revalidatePath("/weekly");
   }
 
   const [{ data: ideasData }, { data: publishData, error }] = await Promise.all([
@@ -130,7 +133,15 @@ export default async function PublishesPage() {
             <div className="space-y-3">
               {publishes.map((row) => (
                 <div key={row.id} className="rounded-lg border p-4">
-                  <p className="font-medium">{row.ideas?.title ?? "（タイトルなし）"}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium">{row.ideas?.title ?? "（タイトルなし）"}</p>
+                    <Link
+                      href={`/ideas/${row.idea_id}`}
+                      className="text-xs text-primary underline-offset-2 hover:underline"
+                    >
+                      ネタ詳細
+                    </Link>
+                  </div>
                   <div className="mt-1 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <span>platform: {row.platform}</span>
                     <span>{new Date(row.published_at).toLocaleString("ja-JP")}</span>

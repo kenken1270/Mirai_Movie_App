@@ -30,6 +30,28 @@ type SnapshotWithJoin = {
   publishes?: { platform?: string; ideas?: { title?: string } | null } | null;
 };
 
+function rollingWeekBuckets(snapshots: SnapshotWithJoin[], periods: number) {
+  const bucketMs = 7 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const out: { label: string; views: number; saves: number }[] = [];
+  for (let i = periods - 1; i >= 0; i--) {
+    const end = now - i * bucketMs;
+    const start = end - bucketMs;
+    const label = `${new Date(start).toLocaleDateString("ja-JP", { month: "numeric", day: "numeric" })}〜`;
+    let views = 0;
+    let saves = 0;
+    for (const s of snapshots) {
+      const t = new Date(s.recorded_at).getTime();
+      if (t >= start && t < end) {
+        views += s.views ?? 0;
+        saves += s.saves ?? 0;
+      }
+    }
+    out.push({ label, views, saves });
+  }
+  return out;
+}
+
 export default async function AnalyticsPage() {
   async function onCreateSnapshot(formData: FormData) {
     "use server";
@@ -68,6 +90,8 @@ export default async function AnalyticsPage() {
     ideas: p.ideas,
   }));
   const snapshots = (snapshotData ?? []) as SnapshotWithJoin[];
+  const weekBuckets = rollingWeekBuckets(snapshots, 8);
+  const maxViews = Math.max(1, ...weekBuckets.map((b) => b.views));
 
   return (
     <div className="container mx-auto max-w-7xl p-8">
@@ -76,6 +100,45 @@ export default async function AnalyticsPage() {
           <CardTitle>分析ログ</CardTitle>
           <CardDescription>投稿の実績を時系列で記録し、次の意思決定に使います。</CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">再生の推移（7日区間・直近8本）</CardTitle>
+          <CardDescription>
+            スナップショットを記録した日時で集計します。同じ週に複数記録があると合算されます。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {snapshots.length === 0 ? (
+            <p className="text-sm text-muted-foreground">データがまだないためグラフを表示できません。</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex h-36 items-end gap-1.5 border-b border-border pb-6 pt-2">
+                {weekBuckets.map((b) => {
+                  const hPx = Math.max(4, Math.round((b.views / maxViews) * 120));
+                  return (
+                    <div key={b.label} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1">
+                      <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{b.views}</span>
+                      <div
+                        className="w-full max-w-[48px] rounded-t bg-primary/85 transition-all"
+                        style={{ height: `${hPx}px` }}
+                        title={`再生 ${b.views} / 保存 ${b.saves}`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap justify-between gap-1 text-[10px] text-muted-foreground">
+                {weekBuckets.map((b) => (
+                  <span key={b.label} className="min-w-0 flex-1 text-center">
+                    {b.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
       </Card>
 
       <Card className="mb-6">

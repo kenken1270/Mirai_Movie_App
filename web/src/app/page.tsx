@@ -97,6 +97,12 @@ export default async function Home() {
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         <Link
+          href="/weekly"
+          className={cn(buttonVariants({ variant: "default" }))}
+        >
+          今週のフォーカス
+        </Link>
+        <Link
           href="/needs-research"
           className={cn(buttonVariants({ variant: "default" }))}
         >
@@ -150,19 +156,17 @@ export default async function Home() {
         >
           次の一手
         </Link>
-        <Link
-          href="/test-themes"
-          className={cn(buttonVariants({ variant: "outline" }))}
-        >
-          接続テスト（旧）
-        </Link>
-        <Link
-          href="/themes-stock"
-          className={cn(buttonVariants({ variant: "default" }))}
-        >
-          ネタストック（旧）
-        </Link>
       </div>
+      <p className="mt-4 text-center text-xs text-muted-foreground">
+        レガシー:{" "}
+        <Link href="/test-themes" className="underline-offset-2 hover:underline">
+          接続テスト
+        </Link>
+        {" · "}
+        <Link href="/themes-stock" className="underline-offset-2 hover:underline">
+          ネタストック
+        </Link>
+      </p>
       <form action={signOut}>
         <button
           type="submit"

@@ -47,9 +47,160 @@ export async function listPipelineIdeas() {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("ideas")
-    .select("id,hypothesis_id,title,hook,status,created_at,hypotheses(title)")
+    .select(
+      "id,hypothesis_id,title,hook,status,created_at,updated_at,source_note,tags,scheduled_filming_at,scheduled_publish_at,production_checklist,hypotheses(title)",
+    )
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
+  return { data, error: error?.message ?? null };
+}
+
+export async function getIdeaById(id: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("ideas")
+    .select(
+      "id,hypothesis_id,title,hook,status,created_at,source_note,buzzword_id,tags,scheduled_filming_at,scheduled_publish_at,production_checklist,hypotheses(title,problem_statement,hook_hypothesis)",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  return { data, error: error?.message ?? null };
+}
+
+export async function updateIdea(input: {
+  id: string;
+  title?: string;
+  hook?: string | null;
+  sourceNote?: string | null;
+  status?: IdeaStatus;
+  tags?: string[];
+  scheduledFilmingAt?: string | null;
+  scheduledPublishAt?: string | null;
+  productionChecklist?: Record<string, boolean>;
+}) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const payload: Record<string, unknown> = {};
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.hook !== undefined) payload.hook = input.hook;
+  if (input.sourceNote !== undefined) payload.source_note = input.sourceNote;
+  if (input.status !== undefined) payload.status = input.status;
+  if (input.tags !== undefined) payload.tags = input.tags;
+  if (input.scheduledFilmingAt !== undefined) payload.scheduled_filming_at = input.scheduledFilmingAt;
+  if (input.scheduledPublishAt !== undefined) payload.scheduled_publish_at = input.scheduledPublishAt;
+  if (input.productionChecklist !== undefined) payload.production_checklist = input.productionChecklist;
+  const { error } = await supabase.schema(SCHEMA).from("ideas").update(payload).eq("id", input.id);
+  return { error: error?.message ?? null };
+}
+
+export async function listScriptsByIdea(ideaId: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("scripts")
+    .select("id,idea_id,version,language,content,is_current,created_at")
+    .eq("idea_id", ideaId)
+    .order("version", { ascending: false });
+  return { data, error: error?.message ?? null };
+}
+
+export async function listPublishesByIdea(ideaId: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("publishes")
+    .select("id,idea_id,platform,platform_post_id,published_at,content_type,url,created_at")
+    .eq("idea_id", ideaId)
+    .order("published_at", { ascending: false });
+  return { data, error: error?.message ?? null };
+}
+
+export async function listMetricSnapshotsForIdea(ideaId: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data: pubs, error: pubErr } = await supabase
+    .schema(SCHEMA)
+    .from("publishes")
+    .select("id")
+    .eq("idea_id", ideaId);
+  if (pubErr?.message) return { data: null, error: pubErr.message };
+  const ids = (pubs ?? []).map((p: { id: string }) => p.id);
+  if (ids.length === 0) return { data: [], error: null };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("metric_snapshots")
+    .select(
+      "id,publish_id,recorded_at,views,likes,comments,shares,saves,avg_view_duration_sec,completion_rate,publishes(platform)",
+    )
+    .in("publish_id", ids)
+    .order("recorded_at", { ascending: false })
+    .limit(50);
+  return { data, error: error?.message ?? null };
+}
+
+export async function listIdeaAssets(ideaId: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("idea_assets")
+    .select("id,idea_id,label,url,created_at")
+    .eq("idea_id", ideaId)
+    .order("created_at", { ascending: false });
+  return { data, error: error?.message ?? null };
+}
+
+export async function createIdeaAsset(input: { ideaId: string; label: string; url: string }) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const url = input.url.trim();
+  if (!url) return { error: "URL が空です。" };
+  const { error } = await supabase.schema(SCHEMA).from("idea_assets").insert({
+    idea_id: input.ideaId,
+    label: input.label.trim() || null,
+    url,
+  });
+  return { error: error?.message ?? null };
+}
+
+export async function deleteIdeaAsset(id: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const { error } = await supabase.schema(SCHEMA).from("idea_assets").delete().eq("id", id);
+  return { error: error?.message ?? null };
+}
+
+export async function createAiGenerationLog(input: {
+  ideaId: string | null;
+  kind: string;
+  model: string;
+  promptSummary: string;
+}) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const { error } = await supabase.schema(SCHEMA).from("ai_generation_logs").insert({
+    idea_id: input.ideaId,
+    kind: input.kind,
+    model: input.model,
+    prompt_summary: input.promptSummary.slice(0, 8000),
+  });
+  return { error: error?.message ?? null };
+}
+
+export async function listAiLogsForIdea(ideaId: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("ai_generation_logs")
+    .select("id,kind,model,created_at,prompt_summary")
+    .eq("idea_id", ideaId)
+    .order("created_at", { ascending: false })
+    .limit(30);
   return { data, error: error?.message ?? null };
 }
 
@@ -208,6 +359,7 @@ export async function upsertBrandProfile(input: {
   defaultDurationSec: number;
   defaultGoal: string;
   defaultCta: string;
+  scriptOsMarkdown: string;
 }) {
   const supabase = createSupabaseClient();
   if (!supabase) return { error: "Supabase is not configured." };
@@ -222,6 +374,7 @@ export async function upsertBrandProfile(input: {
     default_duration_sec: input.defaultDurationSec,
     default_goal: input.defaultGoal,
     default_cta: input.defaultCta || null,
+    script_os_markdown: input.scriptOsMarkdown || null,
   };
   const { error } = await supabase.schema(SCHEMA).from("brand_profiles").upsert(payload);
   return { error: error?.message ?? null };
@@ -336,5 +489,18 @@ export async function createScript(input: {
     content: input.content,
     is_current: true,
   });
+  return { error: error?.message ?? null };
+}
+
+export async function updateScriptContent(input: { id: string; content: string }) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const content = input.content.trim();
+  if (!content) return { error: "内容が空です。" };
+  const { error } = await supabase
+    .schema(SCHEMA)
+    .from("scripts")
+    .update({ content })
+    .eq("id", input.id);
   return { error: error?.message ?? null };
 }
