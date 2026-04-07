@@ -114,7 +114,11 @@ export default async function ScriptsPage({
         <CardHeader>
           <CardTitle>台本作成</CardTitle>
           <CardDescription>
-            AIは1回の壁打ち生成に限定し、コストを抑えて台本下書きを作ります。ブランドの「台本OS」（ブランドページ）を最優先し、秒数・映像・セリフ・演出のMarkdown表形式で出力します。パイプラインの「台本へ」から来た場合、アイディアが自動で選ばれます。
+            AIは1回の壁打ち生成に限定し、コストを抑えて台本下書きを作ります。ブランドの「台本OS」（ブランドページ）を最優先し、秒数・映像・セリフ・演出のMarkdown表形式で出力します。パイプラインの「台本へ」から来た場合、アイディアが自動で選ばれます。保存した台本の一覧・撮影用カンペ表示は{" "}
+            <Link href="/script-library" className="font-medium text-primary underline-offset-2 hover:underline">
+              台本保管庫
+            </Link>
+            から開けます。
           </CardDescription>
         </CardHeader>
       </Card>

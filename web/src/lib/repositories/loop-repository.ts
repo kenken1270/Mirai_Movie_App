@@ -457,7 +457,19 @@ export async function listScripts() {
     .from("scripts")
     .select("id,idea_id,version,language,content,is_current,created_at,ideas(title)")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(300);
+  return { data, error: error?.message ?? null };
+}
+
+export async function getScriptById(id: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("scripts")
+    .select("id,idea_id,version,language,content,is_current,created_at,ideas(title)")
+    .eq("id", id)
+    .maybeSingle();
   return { data, error: error?.message ?? null };
 }
 

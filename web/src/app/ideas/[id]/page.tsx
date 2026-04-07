@@ -381,10 +381,18 @@ export default async function IdeaDetailPage({ params }: { params: { id: string 
           ) : (
             (scripts ?? []).map((s: { id: string; version: number; is_current: boolean; content: string }) => (
               <div key={s.id} className="rounded-lg border p-3">
-                <p className="text-xs font-medium text-muted-foreground">
-                  v{s.version}
-                  {s.is_current ? " · 現在版" : " · 履歴"}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    v{s.version}
+                    {s.is_current ? " · 現在版" : " · 履歴"}
+                  </p>
+                  <Link
+                    href={`/script-library/${s.id}`}
+                    className="text-xs font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    カンペ表示
+                  </Link>
+                </div>
                 <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap font-mono text-xs">{s.content}</pre>
               </div>
             ))

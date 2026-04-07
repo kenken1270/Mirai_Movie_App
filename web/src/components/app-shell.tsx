@@ -13,6 +13,7 @@ const NAV = [
   { href: "/hypotheses", label: "仮説" },
   { href: "/pipeline", label: "パイプライン" },
   { href: "/scripts", label: "台本" },
+  { href: "/script-library", label: "保管庫" },
   { href: "/publishes", label: "投稿" },
   { href: "/analytics", label: "分析" },
   { href: "/retrospectives", label: "振り返り" },

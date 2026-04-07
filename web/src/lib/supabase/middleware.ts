@@ -40,6 +40,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/hypotheses") ||
     request.nextUrl.pathname.startsWith("/pipeline") ||
     request.nextUrl.pathname.startsWith("/scripts") ||
+    request.nextUrl.pathname.startsWith("/script-library") ||
     request.nextUrl.pathname.startsWith("/publishes") ||
     request.nextUrl.pathname.startsWith("/analytics") ||
     request.nextUrl.pathname.startsWith("/retrospectives") ||
