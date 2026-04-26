@@ -1,21 +1,18 @@
-import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  createPublish,
-  listPipelineIdeas,
-  listPublishes,
-  moveIdeaStatus,
-} from "@/lib/repositories/loop-repository";
+import { publishPlatformLabelJa } from "@/lib/publish-platform-label";
+import { listPipelineIdeas, listPublishes } from "@/lib/repositories/loop-repository";
 import type { IdeaRow, PublishPlatform } from "@/types/domain";
+
+import { PublishForm } from "./publish-form";
 
 export const dynamic = "force-dynamic";
 
 type PublishWithIdea = {
   id: string;
-  idea_id: string;
+  idea_id: string | null;
+  title: string | null;
   platform: PublishPlatform;
   platform_post_id: string | null;
   published_at: string;
@@ -24,27 +21,7 @@ type PublishWithIdea = {
   ideas?: { title?: string } | null;
 };
 
-const platformOptions: PublishPlatform[] = ["instagram", "youtube", "tiktok", "x", "other"];
-
 export default async function PublishesPage() {
-  async function onCreatePublish(formData: FormData) {
-    "use server";
-    const ideaId = String(formData.get("idea_id") ?? "");
-    const platform = String(formData.get("platform") ?? "instagram") as PublishPlatform;
-    const platformPostId = String(formData.get("platform_post_id") ?? "").trim();
-    const publishedAt = String(formData.get("published_at") ?? "");
-    const contentType = String(formData.get("content_type") ?? "short_video").trim();
-    const url = String(formData.get("url") ?? "").trim();
-    if (!ideaId || !publishedAt) return;
-
-    await createPublish({ ideaId, platform, platformPostId, publishedAt, contentType, url });
-    await moveIdeaStatus(ideaId, "published");
-    revalidatePath("/publishes");
-    revalidatePath("/pipeline");
-    revalidatePath(`/ideas/${ideaId}`);
-    revalidatePath("/weekly");
-  }
-
   const [{ data: ideasData }, { data: publishData, error }] = await Promise.all([
     listPipelineIdeas(),
     listPublishes(),
@@ -58,7 +35,7 @@ export default async function PublishesPage() {
         <CardHeader>
           <CardTitle>投稿記録</CardTitle>
           <CardDescription>
-            どのネタを、どこに、いつ投稿したかを記録して分析の起点を作ります。
+            新規は <strong>Instagram / 小紅書 / Note</strong> のみ。Note はネタに紐づけるか、独立記事としてタイトルのみでも登録できます（過去データの他媒体は一覧に残ります）。
           </CardDescription>
         </CardHeader>
       </Card>
@@ -68,56 +45,7 @@ export default async function PublishesPage() {
           <CardTitle className="text-base">投稿を追加</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={onCreatePublish} className="grid gap-3 md:grid-cols-2">
-            <select
-              name="idea_id"
-              required
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              <option value="">ネタを選択</option>
-              {ideas.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-            <select
-              name="platform"
-              defaultValue="instagram"
-              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            >
-              {platformOptions.map((platform) => (
-                <option key={platform} value={platform}>
-                  {platform}
-                </option>
-              ))}
-            </select>
-            <input
-              name="published_at"
-              type="datetime-local"
-              required
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <input
-              name="platform_post_id"
-              placeholder="投稿ID（任意）"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <input
-              name="content_type"
-              defaultValue="short_video"
-              placeholder="short_video"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <input
-              name="url"
-              placeholder="投稿URL（任意）"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
-            <div>
-              <Button type="submit">投稿を保存</Button>
-            </div>
-          </form>
+          <PublishForm ideas={ideas.map((item) => ({ id: item.id, title: item.title }))} />
         </CardContent>
       </Card>
 
@@ -131,19 +59,26 @@ export default async function PublishesPage() {
             <p className="text-sm text-muted-foreground">投稿データがまだありません。</p>
           ) : (
             <div className="space-y-3">
-              {publishes.map((row) => (
+              {publishes.map((row) => {
+                const displayTitle =
+                  row.ideas?.title ?? row.title ?? (row.idea_id ? "（タイトルなし）" : "（独立 Note）");
+                return (
                 <div key={row.id} className="rounded-lg border p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-medium">{row.ideas?.title ?? "（タイトルなし）"}</p>
+                    <p className="font-medium">{displayTitle}</p>
+                    {row.idea_id ? (
                     <Link
                       href={`/ideas/${row.idea_id}`}
                       className="text-xs text-primary underline-offset-2 hover:underline"
                     >
                       ネタ詳細
                     </Link>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">ネタ未紐づけ</span>
+                    )}
                   </div>
                   <div className="mt-1 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                    <span>platform: {row.platform}</span>
+                    <span>{publishPlatformLabelJa(row.platform)}</span>
                     <span>{new Date(row.published_at).toLocaleString("ja-JP")}</span>
                     <span>type: {row.content_type}</span>
                   </div>
@@ -153,7 +88,8 @@ export default async function PublishesPage() {
                     </a>
                   ) : null}
                 </div>
-              ))}
+              );
+              })}
             </div>
           )}
         </CardContent>

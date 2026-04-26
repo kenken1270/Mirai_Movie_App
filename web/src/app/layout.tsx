@@ -16,8 +16,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "未来塾 動画制作ラボ",
-  description: "Streamlit から Next.js へ移行中のアプリです。",
+  title: "未来塾 SNS 運用",
+  description: "Instagram・小紅書・Note の投稿記録と週次運用。",
 };
 
 export default function RootLayout({

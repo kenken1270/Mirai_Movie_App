@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { publishEntryTitle, publishPlatformLabelJa } from "@/lib/publish-platform-label";
 import {
   createMetricSnapshot,
   listMetricSnapshots,
@@ -13,6 +14,8 @@ export const dynamic = "force-dynamic";
 type PublishOption = {
   id: string;
   platform: string;
+  title?: string | null;
+  idea_id?: string | null;
   ideas?: { title?: string } | null;
 };
 
@@ -27,7 +30,12 @@ type SnapshotWithJoin = {
   saves: number;
   avg_view_duration_sec: number | null;
   completion_rate: number | null;
-  publishes?: { platform?: string; ideas?: { title?: string } | null } | null;
+  publishes?: {
+    platform?: string;
+    title?: string | null;
+    idea_id?: string | null;
+    ideas?: { title?: string } | null;
+  } | null;
 };
 
 function rollingWeekBuckets(snapshots: SnapshotWithJoin[], periods: number) {
@@ -84,11 +92,7 @@ export default async function AnalyticsPage() {
     listPublishes(),
     listMetricSnapshots(),
   ]);
-  const publishes = ((publishData ?? []) as PublishOption[]).map((p) => ({
-    id: p.id,
-    platform: p.platform,
-    ideas: p.ideas,
-  }));
+  const publishes = (publishData ?? []) as PublishOption[];
   const snapshots = (snapshotData ?? []) as SnapshotWithJoin[];
   const weekBuckets = rollingWeekBuckets(snapshots, 8);
   const maxViews = Math.max(1, ...weekBuckets.map((b) => b.views));
@@ -155,7 +159,7 @@ export default async function AnalyticsPage() {
               <option value="">投稿を選択</option>
               {publishes.map((item) => (
                 <option key={item.id} value={item.id}>
-                  [{item.platform}] {item.ideas?.title ?? "（タイトルなし）"}
+                  [{publishPlatformLabelJa(item.platform)}] {publishEntryTitle(item)}
                 </option>
               ))}
             </select>
@@ -198,7 +202,13 @@ export default async function AnalyticsPage() {
               {snapshots.map((row) => (
                 <div key={row.id} className="rounded-lg border p-4">
                   <p className="font-medium">
-                    [{row.publishes?.platform ?? "unknown"}] {row.publishes?.ideas?.title ?? "（タイトルなし）"}
+                    [
+                    {publishPlatformLabelJa(String(row.publishes?.platform ?? "unknown"))}
+                    ] {publishEntryTitle({
+                      ideas: row.publishes?.ideas ?? null,
+                      title: row.publishes?.title ?? null,
+                      idea_id: row.publishes?.idea_id ?? null,
+                    })}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-4 text-xs text-muted-foreground">
                     <span>{new Date(row.recorded_at).toLocaleString("ja-JP")}</span>

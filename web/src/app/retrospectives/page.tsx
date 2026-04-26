@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { publishEntryTitle, publishPlatformLabelJa } from "@/lib/publish-platform-label";
 import {
   createRetrospective,
   listHypotheses,
@@ -15,6 +16,8 @@ export const dynamic = "force-dynamic";
 type PublishOption = {
   id: string;
   platform: string;
+  title?: string | null;
+  idea_id?: string | null;
   ideas?: { title?: string } | null;
 };
 
@@ -26,7 +29,12 @@ type RetrospectiveWithJoin = {
   next_action: string;
   created_at: string;
   hypotheses?: { title?: string } | null;
-  publishes?: { platform?: string } | null;
+  publishes?: {
+    platform?: string;
+    title?: string | null;
+    idea_id?: string | null;
+    ideas?: { title?: string } | null;
+  } | null;
 };
 
 export default async function RetrospectivesPage() {
@@ -93,7 +101,7 @@ export default async function RetrospectivesPage() {
               <option value="">投稿（任意）</option>
               {publishes.map((item) => (
                 <option key={item.id} value={item.id}>
-                  [{item.platform}] {item.ideas?.title ?? "（タイトルなし）"}
+                  [{publishPlatformLabelJa(item.platform)}] {publishEntryTitle(item)}
                 </option>
               ))}
             </select>
@@ -140,7 +148,14 @@ export default async function RetrospectivesPage() {
                 <div key={row.id} className="rounded-lg border p-4">
                   <p className="font-medium">{row.summary}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    仮説: {row.hypotheses?.title ?? "（なし）"} / 投稿: {row.publishes?.platform ?? "未紐づけ"}
+                    仮説: {row.hypotheses?.title ?? "（なし）"} / 投稿:{" "}
+                    {row.publishes
+                      ? `${publishPlatformLabelJa(String(row.publishes.platform ?? "?"))} · ${publishEntryTitle({
+                          ideas: row.publishes.ideas ?? null,
+                          title: row.publishes.title ?? null,
+                          idea_id: row.publishes.idea_id ?? null,
+                        })}`
+                      : "未紐づけ"}
                   </p>
                   {row.what_worked ? (
                     <p className="mt-2 text-sm">

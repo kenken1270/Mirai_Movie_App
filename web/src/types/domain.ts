@@ -36,11 +36,24 @@ export type IdeaRow = {
   created_at: string;
 };
 
-export type PublishPlatform = "instagram" | "youtube" | "tiktok" | "x" | "other";
+/** 新規投稿で選べる3媒体（合意: 二本柱＋正本） */
+export type ActivePublishPlatform = "instagram" | "xiaohongshu" | "note";
+
+export const ACTIVE_PUBLISH_PLATFORMS: readonly ActivePublishPlatform[] = [
+  "instagram",
+  "xiaohongshu",
+  "note",
+] as const;
+
+/** 既存行・移管用のレガシー値 */
+export type LegacyOnlyPublishPlatform = "youtube" | "tiktok" | "x" | "other";
+
+export type PublishPlatform = ActivePublishPlatform | LegacyOnlyPublishPlatform;
 
 export type PublishRow = {
   id: string;
-  idea_id: string;
+  idea_id: string | null;
+  title: string | null;
   platform: PublishPlatform;
   platform_post_id: string | null;
   published_at: string;

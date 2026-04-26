@@ -1,5 +1,12 @@
 import { createSupabaseClient } from "@/lib/supabase/client";
-import type { HypothesisStatus, IdeaStatus, PublishPlatform } from "@/types/domain";
+import { NETA_STOCK_HYPOTHESIS_IDS, NETA_STOCK_HYPOTHESES } from "@/lib/idea-stock-hypotheses";
+import type { ScriptStructuredData } from "@/lib/script-structured";
+import {
+  ACTIVE_PUBLISH_PLATFORMS,
+  type ActivePublishPlatform,
+  type HypothesisStatus,
+  type IdeaStatus,
+} from "@/types/domain";
 
 const SCHEMA = "mirai_sns";
 
@@ -53,6 +60,108 @@ export async function listPipelineIdeas() {
     .order("created_at", { ascending: false })
     .limit(200);
   return { data, error: error?.message ?? null };
+}
+
+/** 台本未作成のフック案ストック（戦略×10本）。`idea_stock_items` テーブル。 */
+export async function listIdeaStockItems() {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { data: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("idea_stock_items")
+    .select("id,strategy_order,strategy_name,strategy_purpose,line_order,hook_text,created_at")
+    .order("strategy_order", { ascending: true })
+    .order("line_order", { ascending: true });
+  return { data, error: error?.message ?? null };
+}
+
+/** ネタストック用の5仮説を upsert（固定UUID）。 */
+export async function ensureNetaStockHypotheses() {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  for (const h of NETA_STOCK_HYPOTHESES) {
+    const id = NETA_STOCK_HYPOTHESIS_IDS[h.order];
+    const { error } = await supabase.schema(SCHEMA).from("hypotheses").upsert(
+      {
+        id,
+        title: h.title,
+        problem_statement: h.problemStatement,
+        hook_hypothesis: null,
+        success_metric: "save_rate",
+        priority: 3,
+        status: "ready",
+      },
+      { onConflict: "id" },
+    );
+    if (error) return { error: error.message };
+  }
+  return { error: null as string | null };
+}
+
+/**
+ * idea_stock_items の各行を ideas（ネタ／backlog）として投入。同一仮説＋同一タイトルはスキップ。
+ */
+export async function syncIdeaStockToPipeline() {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { inserted: 0, skipped: 0, error: "Supabase is not configured." };
+
+  const ensured = await ensureNetaStockHypotheses();
+  if (ensured.error) return { inserted: 0, skipped: 0, error: ensured.error };
+
+  const { data: items, error: fetchErr } = await supabase
+    .schema(SCHEMA)
+    .from("idea_stock_items")
+    .select("strategy_order,strategy_name,strategy_purpose,hook_text")
+    .order("strategy_order", { ascending: true })
+    .order("line_order", { ascending: true });
+
+  if (fetchErr) return { inserted: 0, skipped: 0, error: fetchErr.message };
+  const rows = items ?? [];
+  if (rows.length === 0) {
+    return {
+      inserted: 0,
+      skipped: 0,
+      error:
+        "idea_stock_items が空です。先に 011_idea_stock.sql を Supabase で実行してください。",
+    };
+  }
+
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const row of rows) {
+    const hid = NETA_STOCK_HYPOTHESIS_IDS[row.strategy_order];
+    if (!hid) {
+      skipped += 1;
+      continue;
+    }
+
+    const { data: existing } = await supabase
+      .schema(SCHEMA)
+      .from("ideas")
+      .select("id")
+      .eq("hypothesis_id", hid)
+      .eq("title", row.hook_text)
+      .maybeSingle();
+
+    if (existing) {
+      skipped += 1;
+      continue;
+    }
+
+    const { error: insErr } = await supabase.schema(SCHEMA).from("ideas").insert({
+      hypothesis_id: hid,
+      title: row.hook_text,
+      status: "backlog",
+      source_note: row.strategy_purpose ?? null,
+      tags: ["ネタストック", row.strategy_name],
+    });
+
+    if (insErr) return { inserted, skipped, error: insErr.message };
+    inserted += 1;
+  }
+
+  return { inserted, skipped, error: null as string | null };
 }
 
 export async function getIdeaById(id: string) {
@@ -113,7 +222,7 @@ export async function listPublishesByIdea(ideaId: string) {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("publishes")
-    .select("id,idea_id,platform,platform_post_id,published_at,content_type,url,created_at")
+    .select("id,idea_id,title,platform,platform_post_id,published_at,content_type,url,created_at")
     .eq("idea_id", ideaId)
     .order("published_at", { ascending: false });
   return { data, error: error?.message ?? null };
@@ -134,7 +243,7 @@ export async function listMetricSnapshotsForIdea(ideaId: string) {
     .schema(SCHEMA)
     .from("metric_snapshots")
     .select(
-      "id,publish_id,recorded_at,views,likes,comments,shares,saves,avg_view_duration_sec,completion_rate,publishes(platform)",
+      "id,publish_id,recorded_at,views,likes,comments,shares,saves,avg_view_duration_sec,completion_rate,publishes(platform,title,idea_id,ideas(title))",
     )
     .in("publish_id", ids)
     .order("recorded_at", { ascending: false })
@@ -238,22 +347,65 @@ export async function listPublishes() {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("publishes")
-    .select("id,idea_id,platform,platform_post_id,published_at,content_type,url,created_at,ideas(title)")
+    .select("id,idea_id,title,platform,platform_post_id,published_at,content_type,url,created_at,ideas(title)")
     .order("published_at", { ascending: false })
     .limit(100);
   return { data, error: error?.message ?? null };
 }
 
+function isActivePlatform(p: string): p is ActivePublishPlatform {
+  return (ACTIVE_PUBLISH_PLATFORMS as readonly string[]).includes(p);
+}
+
+/**
+ * 新規の投稿行。`platform=note` かつ独立記事のとき `ideaId` を省略し `standaloneTitle` 必須。
+ * 短尺系は `ideaId` 必須。
+ */
 export async function createPublish(input: {
-  ideaId: string;
-  platform: PublishPlatform;
+  ideaId: string | null;
+  platform: ActivePublishPlatform;
   platformPostId: string;
   publishedAt: string;
   contentType: string;
   url: string;
-}) {
+  standaloneTitle?: string | null;
+}): Promise<{ error: string | null }> {
   const supabase = createSupabaseClient();
   if (!supabase) return { error: "Supabase is not configured." };
+  if (!isActivePlatform(input.platform)) {
+    return { error: "新規は instagram / xiaohongshu / note のみです。" };
+  }
+  if (input.platform === "note") {
+    if (input.ideaId) {
+      const { error } = await supabase.schema(SCHEMA).from("publishes").insert({
+        idea_id: input.ideaId,
+        platform: input.platform,
+        platform_post_id: input.platformPostId || null,
+        published_at: input.publishedAt,
+        content_type: input.contentType || "article",
+        url: input.url || null,
+        title: null,
+      });
+      return { error: error?.message ?? null };
+    }
+    const title = (input.standaloneTitle ?? "").trim();
+    if (!title) {
+      return { error: "独立 Note の場合はタイトルを入力してください。" };
+    }
+    const { error } = await supabase.schema(SCHEMA).from("publishes").insert({
+      idea_id: null,
+      platform: "note",
+      platform_post_id: input.platformPostId || null,
+      published_at: input.publishedAt,
+      content_type: input.contentType || "article",
+      url: input.url || null,
+      title,
+    });
+    return { error: error?.message ?? null };
+  }
+  if (!input.ideaId) {
+    return { error: "小紅書・Instagram の投稿はネタ（idea）を選んでください。" };
+  }
   const { error } = await supabase.schema(SCHEMA).from("publishes").insert({
     idea_id: input.ideaId,
     platform: input.platform,
@@ -261,6 +413,7 @@ export async function createPublish(input: {
     published_at: input.publishedAt,
     content_type: input.contentType || "short_video",
     url: input.url || null,
+    title: null,
   });
   return { error: error?.message ?? null };
 }
@@ -271,7 +424,9 @@ export async function listMetricSnapshots() {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("metric_snapshots")
-    .select("id,publish_id,recorded_at,views,likes,comments,shares,saves,avg_view_duration_sec,completion_rate,publishes(platform,ideas(title))")
+    .select(
+      "id,publish_id,recorded_at,views,likes,comments,shares,saves,avg_view_duration_sec,completion_rate,publishes(platform,title,idea_id,ideas(title))",
+    )
     .order("recorded_at", { ascending: false })
     .limit(100);
   return { data, error: error?.message ?? null };
@@ -308,7 +463,9 @@ export async function listRetrospectives() {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("retrospectives")
-    .select("id,hypothesis_id,publish_id,summary,what_worked,what_failed,next_action,created_at,hypotheses(title),publishes(platform)")
+    .select(
+      "id,hypothesis_id,publish_id,summary,what_worked,what_failed,next_action,created_at,hypotheses(title),publishes(platform,title,idea_id,ideas(title))",
+    )
     .order("created_at", { ascending: false })
     .limit(100);
   return { data, error: error?.message ?? null };
@@ -455,7 +612,9 @@ export async function listScripts() {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("scripts")
-    .select("id,idea_id,version,language,content,is_current,created_at,ideas(title)")
+    .select(
+      "id,idea_id,version,language,content,is_current,created_at,display_title,structured_data,ideas(title)",
+    )
     .order("created_at", { ascending: false })
     .limit(300);
   return { data, error: error?.message ?? null };
@@ -467,16 +626,58 @@ export async function getScriptById(id: string) {
   const { data, error } = await supabase
     .schema(SCHEMA)
     .from("scripts")
-    .select("id,idea_id,version,language,content,is_current,created_at,ideas(title)")
+    .select(
+      "id,idea_id,version,language,content,is_current,created_at,display_title,structured_data,ideas(title)",
+    )
     .eq("id", id)
     .maybeSingle();
   return { data, error: error?.message ?? null };
+}
+
+export async function findIdeaByHypothesisAndTitle(hypothesisId: string, title: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { id: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("ideas")
+    .select("id")
+    .eq("hypothesis_id", hypothesisId)
+    .eq("title", title)
+    .maybeSingle();
+  return { id: data?.id ?? null, error: error?.message ?? null };
+}
+
+export async function findHypothesisByTitle(title: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { id: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("hypotheses")
+    .select("id")
+    .eq("title", title)
+    .maybeSingle();
+  return { id: data?.id ?? null, error: error?.message ?? null };
+}
+
+export async function getCurrentScriptIdForIdea(ideaId: string) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { id: null, error: "Supabase is not configured." };
+  const { data, error } = await supabase
+    .schema(SCHEMA)
+    .from("scripts")
+    .select("id")
+    .eq("idea_id", ideaId)
+    .eq("is_current", true)
+    .maybeSingle();
+  return { id: data?.id ?? null, error: error?.message ?? null };
 }
 
 export async function createScript(input: {
   ideaId: string;
   content: string;
   language?: string;
+  displayTitle?: string | null;
+  structuredData?: ScriptStructuredData | null;
 }) {
   const supabase = createSupabaseClient();
   if (!supabase) return { error: "Supabase is not configured." };
@@ -494,14 +695,21 @@ export async function createScript(input: {
   }
 
   const nextVersion = (current?.version ?? 0) + 1;
-  const { error } = await supabase.schema(SCHEMA).from("scripts").insert({
-    idea_id: input.ideaId,
-    version: nextVersion,
-    language: input.language || "ja",
-    content: input.content,
-    is_current: true,
-  });
-  return { error: error?.message ?? null };
+  const { data: inserted, error } = await supabase
+    .schema(SCHEMA)
+    .from("scripts")
+    .insert({
+      idea_id: input.ideaId,
+      version: nextVersion,
+      language: input.language || "ja",
+      content: input.content,
+      is_current: true,
+      display_title: input.displayTitle ?? null,
+      structured_data: input.structuredData ?? null,
+    })
+    .select("id")
+    .single();
+  return { error: error?.message ?? null, scriptId: inserted?.id ?? null };
 }
 
 export async function updateScriptContent(input: { id: string; content: string }) {
@@ -513,6 +721,28 @@ export async function updateScriptContent(input: { id: string; content: string }
     .schema(SCHEMA)
     .from("scripts")
     .update({ content })
+    .eq("id", input.id);
+  return { error: error?.message ?? null };
+}
+
+export async function updateScriptStructured(input: {
+  id: string;
+  displayTitle: string | null;
+  structuredData: ScriptStructuredData;
+  contentFromMarkdown: string;
+}) {
+  const supabase = createSupabaseClient();
+  if (!supabase) return { error: "Supabase is not configured." };
+  const content = input.contentFromMarkdown.trim();
+  if (!content) return { error: "生成された台本が空です。" };
+  const { error } = await supabase
+    .schema(SCHEMA)
+    .from("scripts")
+    .update({
+      display_title: input.displayTitle || null,
+      structured_data: input.structuredData,
+      content,
+    })
     .eq("id", input.id);
   return { error: error?.message ?? null };
 }

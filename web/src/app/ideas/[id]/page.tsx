@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyMarkdownButton } from "@/components/copy-markdown-button";
+import { publishPlatformLabelJa } from "@/lib/publish-platform-label";
 import {
   createIdeaAsset,
   deleteIdeaAsset,
@@ -417,7 +418,7 @@ export default async function IdeaDetailPage({ params }: { params: { id: string 
                   url: string | null;
                 }) => (
                   <li key={p.id} className="rounded border px-3 py-2 text-sm">
-                    <span className="font-medium">[{p.platform}]</span>{" "}
+                    <span className="font-medium">[{publishPlatformLabelJa(p.platform)}]</span>{" "}
                     {new Date(p.published_at).toLocaleString("ja-JP")}
                     {p.url ? (
                       <a href={p.url} className="ml-2 text-primary underline" target="_blank" rel="noreferrer">
@@ -439,7 +440,8 @@ export default async function IdeaDetailPage({ params }: { params: { id: string 
                   Array.isArray(pub) ? pub[0]?.platform : pub?.platform;
                 return (
                   <div key={String(m.id)} className="rounded border px-3 py-2 text-xs text-muted-foreground">
-                    {new Date(String(m.recorded_at)).toLocaleString("ja-JP")} · [{platform ?? "?"}] · views{" "}
+                    {new Date(String(m.recorded_at)).toLocaleString("ja-JP")} · [
+                    {publishPlatformLabelJa(String(platform ?? "?"))}] · views{" "}
                     {Number(m.views)} · saves {Number(m.saves)}
                   </div>
                 );

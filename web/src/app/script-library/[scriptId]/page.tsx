@@ -3,6 +3,11 @@ import { notFound } from "next/navigation";
 
 import { ScriptTeleprompterView } from "@/components/script-teleprompter";
 import { getScriptById } from "@/lib/repositories/loop-repository";
+import {
+  buildCueOnlyText,
+  hasProductionMetaContent,
+  parseStructuredData,
+} from "@/lib/script-structured";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +42,27 @@ export default async function ScriptLibraryCuePage({ params }: { params: { scrip
   }
 
   const ideaTitle = resolveIdeaTitle(script.ideas);
+  const structured = parseStructuredData((script as { structured_data?: unknown }).structured_data);
+  const cueOnly = buildCueOnlyText(structured);
+  const cueText = cueOnly ?? script.content;
+  const cueSource = cueOnly ? ("structured" as const) : ("fallback" as const);
+  const productionMeta =
+    (script as { structured_data?: unknown }).structured_data &&
+    hasProductionMetaContent(structured)
+      ? structured
+      : null;
+  const displayTitle = String((script as { display_title?: string | null }).display_title ?? "").trim() || null;
 
   return (
     <ScriptTeleprompterView
       scriptId={script.id}
       ideaTitle={ideaTitle}
+      displayTitle={displayTitle}
       version={script.version}
       isCurrent={script.is_current}
-      content={script.content}
+      cueText={cueText}
+      cueSource={cueSource}
+      productionMeta={productionMeta}
     />
   );
 }

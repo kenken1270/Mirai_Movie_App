@@ -152,11 +152,15 @@ export default async function ScriptsPage({
               placeholder="フック（任意）"
               className="h-9 rounded-md border border-input bg-background px-3 text-sm md:col-span-2"
             />
-            <input
+            <select
               name="platform"
               defaultValue={brand?.default_platform ?? "instagram"}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="instagram">Instagram</option>
+              <option value="xiaohongshu">小紅書（XHS）</option>
+              <option value="note">Note</option>
+            </select>
             <input
               name="duration_sec"
               type="number"

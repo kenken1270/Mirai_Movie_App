@@ -96,7 +96,8 @@ export default async function WeeklyPage() {
         <CardHeader>
           <CardTitle>今週のフォーカス</CardTitle>
           <CardDescription>
-            週の区切りは月曜始まりです（{weekStart.toLocaleDateString("ja-JP")}〜）。予定が入っているネタ・制作中・今週新規のネタを分けて表示します。
+            週の区切りは月曜始まり（{weekStart.toLocaleDateString("ja-JP")}〜）。運用目安: 短尺{" "}
+            <strong>6本</strong>（IG・小紅書）＋<strong>Note 1本</strong>。予定のあるネタ・制作中・今週新規を分けます。
           </CardDescription>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </CardHeader>
@@ -126,7 +127,7 @@ export default async function WeeklyPage() {
 
       <p className="text-center text-xs text-muted-foreground">
         <Link href="/pipeline" className="underline-offset-2 hover:underline">
-          パイプライン（カンバン）へ
+          制作（パイプライン）へ
         </Link>
       </p>
     </div>

@@ -93,12 +93,19 @@ export default async function BrandPage({
               placeholder="発信トーン"
               className="min-h-20 rounded-md border border-input bg-background p-3 text-sm"
             />
-            <input
+            <select
               name="default_platform"
               defaultValue={data?.default_platform ?? "instagram"}
-              placeholder="既定プラットフォーム"
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            />
+              className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            >
+              <option value="instagram">Instagram</option>
+              <option value="xiaohongshu">小紅書（XHS）</option>
+              <option value="note">Note</option>
+              <option value="youtube">YouTube（レガシー）</option>
+              <option value="tiktok">TikTok（レガシー）</option>
+              <option value="x">X（レガシー）</option>
+              <option value="other">その他</option>
+            </select>
             <input
               name="default_duration_sec"
               type="number"
