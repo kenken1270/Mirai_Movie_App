@@ -2,6 +2,14 @@
 
 Apply these SQL files in order depending on your goal.
 
+## 新規 / 空の Supabase プロジェクト（`mirai-juku` など）
+
+1. まず **`002_mirai_sns_safe_schema.sql` を全文**を SQL Editor に貼り、**Run**（`mirai_sns` の作成＋全テーブル）。
+2. 本番では **`003_mirai_sns_harden_rls.sql`** 推奨（認証ユーザのみ）。
+3. 以降の拡張として **`013_three_pillars_and_note.sql`**（三本柱＋独立 Note 用列・制約）。
+
+`013` だけ先に実行すると、**`schema "mirai_sns" does not exist`** になります。順番は上記どおりにしてください。
+
 1. `002_mirai_sns_safe_schema.sql`
    - Creates `mirai_sns` schema and all app tables.
    - Keeps prototype-friendly access for quick setup.
